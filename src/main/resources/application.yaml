@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: jooq-ai-ledger
+  # Local development: docker compose up -d
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ledger
+    username: ledger
+    password: ledger
+
+logging:
+  level:
+    # Prints every SQL statement jOOQ renders, with bind values.
+    org.jooq.tools.LoggerListener: DEBUG
