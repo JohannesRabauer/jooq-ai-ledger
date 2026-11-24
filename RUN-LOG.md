@@ -20,3 +20,9 @@ MCP tools were available (jooq-docs: 6 tools loaded via ToolSearch).
 - Concurrency: lock account rows with SELECT .. FOR UPDATE ordered by id, then check balance, then insert.
 
 ## Progress log
+- Services written in one go; `mvn compile` had NO compile errors (first attempt). One self-fixed type issue before compiling: `var`/ternary of seek vs limit steps (used if/else), and a `Select<Record4<..>>` return type for the package-private search `query()` so the test can assert on rendered SQL.
+- Search "amount" = max(abs(posting.amount)) of the transaction (HAVING). Choice, because cross-currency transactions make sum-based amounts meaningless.
+- Test failure 1: TransactionSearchServiceTest.filtersCombine:55 - my own test data bug (99.99 > max 50). Fixed the test bound to 100, not the code.
+- Final: `mvn -q -B verify` green, 17 tests (1 smoke + 16 new). Concurrency test: 400 transfers on 16 threads, 5 accounts, total constant, none negative, some rejected.
+- Not verified: no explicit test of a deadlock between concurrent opposite-direction transfers beyond the random concurrent test (accounts locked in id order).
+- MCP total: 7 calls; none changed the code materially (mostly confirmation; #3 and #7 were unhelpful/misleading).
