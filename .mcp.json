@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jooq-docs": {
+      "type": "http",
+      "url": "https://jooq-mcp.martinelli.ch/mcp"
+    }
+  }
+}
