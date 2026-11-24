@@ -19,7 +19,6 @@ import java.util.Optional;
 import java.util.TreeSet;
 
 import org.jooq.DSLContext;
-import org.jooq.impl.DSL;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -224,7 +223,7 @@ public class LedgerService {
             return existing.get();
         }
         // Serialize creation so that concurrent first use does not leave stray customers.
-        dsl.select(DSL.field("pg_advisory_xact_lock({0})", Long.class, FX_CLEARING_LOCK)).fetch();
+        dsl.execute("select pg_advisory_xact_lock(?)", FX_CLEARING_LOCK);
         return dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.IBAN.eq(iban))
                 .fetchOptional(ACCOUNT.ID)
                 .orElseGet(() -> {
