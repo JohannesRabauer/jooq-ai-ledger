@@ -49,4 +49,18 @@ Honest log of compile errors, test failures, approach changes and guesses.
 - Tests (6): two lines competing for one posting (the nearer wins although it has the higher id), same distance broken by id then a second round for the freed posting, global greedy order, window of exactly 2 days / 3 days, other amount, other account, midnight and 23:59 UTC, second run changes nothing, report ranges, an already used posting is not taken again.
 - Passed on the first run.
 
+## Item 6: other dialects
+- Methods: `GroupService.rollupSql(SQLDialect, rootId)` and `ValuationService.valuationSql(SQLDialect, customerId, asOf)`; both build the same query object as the executing method and render it with `DSL.using(dialect).render(query)` (placeholders stay `?`).
+- Compile error (could not be fixed, only worked around): `Symbol nicht gefunden: Variable ORACLE / SQLSERVER in Klasse org.jooq.SQLDialect`. The open source jOOQ jar does not have these two dialects, they exist only in the commercial editions. To see which constants exist I ran a tiny `Probe.java` against the jar (printing `SQLDialect.values()`), no source or docs read: DEFAULT, CLICKHOUSE, CUBRID, DERBY, DUCKDB, FIREBIRD, H2, HSQLDB, IGNITE, MARIADB, MYSQL, POSTGRES, SQLITE, TRINO, YUGABYTEDB. (My first probe also guessed `SQLDialect.isCommercial()`, which does not exist.)
+- So TASK-2 item 6 CANNOT be done as written with the available jOOQ. Workaround: the test tries `SQLDialect.valueOf("ORACLE")` / `"SQLSERVER"` by name and includes them if present (they are not), and otherwise checks MYSQL, MARIADB, H2, HSQLDB, DERBY, SQLITE, FIREBIRD, TRINO against POSTGRES. DUCKDB and YUGABYTEDB left out (Postgres compatible). This is a deviation from the task, not a solution of it.
+- Runtime error 1: `DataAccessException: SQL transformation Settings.transformInlineCTE required. SQL transformations are a commercial only feature` while rendering the roll-up for some dialect. Found out (via a catch and a printed list) that it is DERBY (no WITH support), and only for the roll-up; the valuation renders for Derby. The test records dialects that cannot render with the reason and requires at least 4 dialects incl. MYSQL per query, so it cannot silently skip. Roll-up therefore verified for MYSQL, MARIADB, H2, HSQLDB, SQLITE, FIREBIRD, TRINO (not Derby).
+- Test failure 1: `H2 must not contain 'timestamp with time zone'`: my own leak list was wrong, that type name is standard SQL and H2 accepts it. Removed it from the list.
+- Observation: my two queries contain no Postgres-only syntax to begin with (jOOQ renders casts as `cast(x as t)`, never `::`; no jsonb), so the "no leak" assertions pass trivially for these queries; to show the checker works I added a test that runs the checker over hand-written Postgres SQL.
+- Dialect output differences seen: MySQL uses backticks, `fetch next ? rows only` for the row limit on H2 (Postgres renders `limit`? the Postgres render also showed `fetch next ? rows only`, so I only assert on Firebird not containing ` limit `).
+
+## Final
+- `mvn -q -B verify`: exit 0. 41 tests, 0 failures, 0 errors, 0 skipped (LedgerApplicationTests 1, DailyBalance 3, DialectRendering 5, GroupService 4, Iban 4, Reconciliation 6, ReportSearchImport 7, Transfer 9, Valuation 2).
+- No migration added; V1-V3 and generated sources untouched.
+- Hardest: item 6 (impossible as specified with open source jOOQ), item 2 (UTC/time zone bug), item 4 (SQL greedy matching), item 1 concurrency.
+
 (end of log)
