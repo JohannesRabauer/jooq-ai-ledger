@@ -9,7 +9,7 @@ import static org.jooq.impl.DSL.coalesce;
 import static org.jooq.impl.DSL.sum;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.jooq.DSLContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +23,8 @@ abstract class AbstractLedgerTest {
 
     @ServiceConnection
     static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine");
+
+    private static final AtomicLong IBAN_SEQUENCE = new AtomicLong();
 
     static {
         postgres.start();
@@ -39,7 +41,7 @@ abstract class AbstractLedgerTest {
     protected long account(long customerId, String currency, boolean allowOverdraft) {
         return dsl.insertInto(ACCOUNT)
                 .set(ACCOUNT.CUSTOMER_ID, customerId)
-                .set(ACCOUNT.IBAN, "TEST-" + UUID.randomUUID())
+                .set(ACCOUNT.IBAN, Iban.generate("CH", String.format("%017d", IBAN_SEQUENCE.incrementAndGet())))
                 .set(ACCOUNT.CURRENCY, currency)
                 .set(ACCOUNT.ALLOW_OVERDRAFT, allowOverdraft)
                 .returningResult(ACCOUNT.ID).fetchSingle(ACCOUNT.ID);

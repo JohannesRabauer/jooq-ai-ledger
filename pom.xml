@@ -122,6 +122,13 @@
                                         <includes>.*</includes>
                                         <excludes>flyway_schema_history</excludes>
                                         <inputSchema>public</inputSchema>
+                                        <forcedTypes>
+                                            <forcedType>
+                                                <userType>dev.rabauer.ledger.Iban</userType>
+                                                <converter>dev.rabauer.ledger.IbanConverter</converter>
+                                                <includeExpression>.*\.account\.iban</includeExpression>
+                                            </forcedType>
+                                        </forcedTypes>
                                     </database>
                                     <target>
                                         <packageName>dev.rabauer.ledger.jooq</packageName>

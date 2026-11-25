@@ -113,7 +113,7 @@ public class TransferService {
     }
 
     private long fxClearingAccount(DSLContext tx, String currency) {
-        String iban = "FX-CLEARING-" + currency;
+        Iban iban = Iban.generate("CH", "FXCLEARING" + currency);
         Long id = tx.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.IBAN.eq(iban)).fetchOne(ACCOUNT.ID);
         if (id != null) {
             return id;

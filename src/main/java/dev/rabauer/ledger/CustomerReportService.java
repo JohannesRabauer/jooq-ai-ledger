@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CustomerReportService {
 
-    public record AccountMonth(long accountId, String iban, String currency, BigDecimal credits,
+    public record AccountMonth(long accountId, Iban iban, String currency, BigDecimal credits,
             BigDecimal debits, BigDecimal closingBalance) {
     }
 
