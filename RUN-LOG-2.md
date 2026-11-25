@@ -38,3 +38,10 @@ MCP calls:
 No MCP call for this item (relied on own knowledge; scalar subqueries, max(valid_from) pattern).
 - Decision: inverse rates NOT used (documented in the class comment); differs from TransferService which falls back to the inverse. Booking value is null if any posting has no rate or the currency has no rate as of the valuation time; empty account is worth 0.
 - Query: derived table pv (one row per posting, rate lookups as scalar subqueries via max(valid_from)), outer group by with count(amount) = count(amount*rate) check. Compiled first try, 4 tests passed first run.
+
+## Item 4 (bank reconciliation)
+MCP calls:
+11. searchDocumentation "AT TIME ZONE convert TIMESTAMP WITH TIME ZONE to UTC date" - useless (data type pages). Used plain SQL template `{0} at time zone 'UTC'` for the UTC booking day (Postgres-only, acceptable: item 6 only renders roll-up and valuation). A plain cast to DATE would depend on the session time zone (pgjdbc uses the JVM zone), so I avoided it.
+12. searchDocumentation "UPDATE with subquery or UPDATE FROM join, row value IN" - confirmed UPDATE .. FROM exists in jOOQ (Postgres/SQL Server). Helped: used `with(..).update(..).set(..).from(..).where(..)`; WITH + UPDATE chaining itself was my guess, it compiled.
+- Algorithm: greedy closest-first cannot be one set statement, so rounds of one UPDATE each: candidates CTE (free line x free posting, same account+amount, |day diff| <= 2), ranked CTE with row_number per line and per posting (ties: lower line id, lower posting id), update where both ranks = 1 (mutually best pairs = what a sequential closest-first pass picks). Repeat until 0 rows updated (a Java loop over statements, but no rows loaded). Compiled first time; 8 tests passed first run.
+- Not handled: two reconcile runs at the same time can fail on the UNIQUE(matched_posting_id) (documented in the code), no locking added.
