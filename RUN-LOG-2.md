@@ -33,3 +33,8 @@ MCP calls:
 - Query: generate_series day axis cross join account, correlated scalar subquery sum(postings booked_at < day end) -> includes opening balance and a posting exactly at midnight lands on the new day; derived table + window avg/min per account. Day date is computed in Java from the index of the row (not a loop that builds days).
 - Rendering for Postgres shows `cast(interval '0 years 0 mons 0 days 1 hours ...' as interval day to second)` - ugly but works; not relevant for item 6 (only item 1 and 3 are rendered per dialect).
 - Tests passed first run (4 tests).
+
+## Item 3 (CHF valuation)
+No MCP call for this item (relied on own knowledge; scalar subqueries, max(valid_from) pattern).
+- Decision: inverse rates NOT used (documented in the class comment); differs from TransferService which falls back to the inverse. Booking value is null if any posting has no rate or the currency has no rate as of the valuation time; empty account is worth 0.
+- Query: derived table pv (one row per posting, rate lookups as scalar subqueries via max(valid_from)), outer group by with count(amount) = count(amount*rate) check. Compiled first try, 4 tests passed first run.
