@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.jooq.DSLContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,10 +41,14 @@ abstract class AbstractLedgerTest {
     long newAccount(long customerId, String currency, boolean allowOverdraft) {
         return dsl.insertInto(ACCOUNT)
                 .set(ACCOUNT.CUSTOMER_ID, customerId)
-                .set(ACCOUNT.IBAN, "TEST-" + UUID.randomUUID())
+                .set(ACCOUNT.IBAN, randomIban())
                 .set(ACCOUNT.CURRENCY, currency)
                 .set(ACCOUNT.ALLOW_OVERDRAFT, allowOverdraft)
                 .returningResult(ACCOUNT.ID).fetchSingle().value1();
+    }
+
+    static Iban randomIban() {
+        return Iban.fromBban("CH", String.format("%017d", ThreadLocalRandom.current().nextLong(100_000_000_000_000_000L)));
     }
 
     long newAccount(String currency, boolean allowOverdraft) {

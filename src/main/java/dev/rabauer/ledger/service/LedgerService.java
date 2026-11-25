@@ -216,7 +216,8 @@ public class LedgerService {
     }
 
     private long fxClearingAccount(String currency) {
-        String iban = "FX-CLEARING-" + currency;
+        // Not a real bank IBAN: user-assigned country code XF, but with valid check digits so it is a legal Iban.
+        Iban iban = Iban.fromBban("XF", "FXCLEARING" + currency);
         Optional<Long> existing = dsl.select(ACCOUNT.ID).from(ACCOUNT).where(ACCOUNT.IBAN.eq(iban))
                 .fetchOptional(ACCOUNT.ID);
         if (existing.isPresent()) {

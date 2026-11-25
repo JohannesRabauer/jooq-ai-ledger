@@ -32,7 +32,7 @@ public class ReportService {
     }
 
     /** Debits are reported as a positive magnitude. Months are in UTC. */
-    public record AccountSummary(long accountId, String iban, String currency, BigDecimal credits,
+    public record AccountSummary(long accountId, Iban iban, String currency, BigDecimal credits,
                                  BigDecimal debits, BigDecimal closingBalance) {
     }
 
