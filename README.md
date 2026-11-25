@@ -2,7 +2,7 @@
 
 A small double-entry ledger (accounts, postings, multi-currency) on Spring Boot, PostgreSQL, Flyway and jOOQ. It is the playground for one question: how good is the jOOQ code an AI coding agent writes?
 
-`main` holds only the scaffold: schema, code generation, a smoke test. The task the AI gets is in [TASK.md](TASK.md).
+`main` holds only the scaffold: schema, code generation, a smoke test. The tasks the AI gets are [TASK.md](TASK.md) (the basics) and [TASK-2.md](TASK-2.md) (harder: recursive groups, daily balances, as-of FX valuation, reconciliation, a typed IBAN through code generation, other SQL dialects).
 
 ## Stack
 
@@ -29,4 +29,4 @@ mvn spring-boot:run
 
 ## Schema
 
-`customer` 1-n `account` (own currency, optional overdraft), `ledger_transaction` 1-n `posting` (signed amount per account), `exchange_rate` (rate valid from a point in time), `currency`.
+`customer` 1-n `account` (own currency, optional overdraft, optional `account_group` from a tree), `bank_line` (external statement lines to reconcile), `ledger_transaction` 1-n `posting` (signed amount per account), `exchange_rate` (rate valid from a point in time), `currency`.
