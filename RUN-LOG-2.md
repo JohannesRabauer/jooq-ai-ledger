@@ -22,4 +22,12 @@ Honest log of compile errors, test failures, approach changes and guesses.
 - Test failure 1: `rollupOverThree...` asserted paths starting with "Bank / Retail" for `rollup(retail)`. Test bug: paths are relative to the root passed in, so they are "Retail", "Retail / Zurich". Fixed the test.
 - `mvn verify` green after that (took over two minutes in total, the foreground tool call timed out and moved to the background; I now run maven in the background).
 
+## Item 2: average daily balance (DailyBalanceService)
+- Design: `account CROSS JOIN generate_series(1, lengthOfMonth) d(n)` in a derived table; the day-end balance is a correlated scalar subquery `coalesce((select sum(amount) from posting join ledger_transaction where account = a.id and booked_at < monthStart + n days), 0)`. Outer select adds `avg(balance) over (partition by account)` and `min(...)` window functions. Day n ends where day n+1 starts, so a posting at exactly 00:00 counts for the day that begins there; everything before the month is in the opening balance automatically (no lower bound). Java only groups the flat rows per account, it computes nothing.
+- Guessed: `DSL.generateSeries(1, n).asTable("d", "n")`, `val(OffsetDateTime).plus(Field<Integer>)` for "start + n days". jOOQ rendered `cast(? as timestamp with time zone) + "d"."n" * interval '1 day'`, which is what I wanted. I was not sure the Field.plus on a temporal value would add days and not fail; it worked.
+- Compile error: `Incompatible types: Result<Record6<Long,String,Integer,BigDecimal,BigDecimal,BigDecimal>> cannot be converted to Result<Record>` at `Result<Record> rows = dsl.select(...).fetch()`. Generic invariance; fixed with `Result<? extends Record>`.
+- Averages: Postgres `avg(numeric)` returns many decimals; test compares with a tolerance (`isCloseTo ... within 0.0001`).
+- Tests (3): quiet account, midnight at day 10, midnight at day 1 of the month, 23:59:59.999 on the last day, April posting excluded, opening balance from before the month, intraday dip not counted, negative lowest.
+- Passed on the first test run after the compile fix. Observation: one `mvn verify` takes about 2 minutes here (codegen container plus Spring context startup), so the tool's foreground timeout moves it to the background every time.
+
 (end of log)
