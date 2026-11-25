@@ -5,6 +5,7 @@ import static dev.rabauer.ledger.jooq.Tables.LEDGER_TRANSACTION;
 import static dev.rabauer.ledger.jooq.Tables.POSTING;
 import static org.jooq.impl.DSL.avg;
 import static org.jooq.impl.DSL.coalesce;
+import static org.jooq.impl.DSL.extract;
 import static org.jooq.impl.DSL.field;
 import static org.jooq.impl.DSL.generateSeries;
 import static org.jooq.impl.DSL.min;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jooq.DSLContext;
+import org.jooq.DatePart;
 import org.jooq.Field;
 import org.jooq.Record;
 import org.jooq.Result;
@@ -59,15 +61,18 @@ public class DailyBalanceService {
 
         Table<?> days = generateSeries(1, month.lengthOfMonth()).asTable("d", "n");
         Field<Integer> dayNo = field(name("d", "n"), Integer.class);
-        // start of the next day: month start plus n days
-        Field<OffsetDateTime> nextDayStart = val(monthStart).plus(dayNo);
+        // Start of the next day as epoch seconds: month start plus n * 86400. Not "timestamptz + n days": that
+        // arithmetic follows the session time zone (and its DST changes), which broke the UTC day boundary.
+        Field<BigDecimal> nextDayStart = val(BigDecimal.valueOf(monthStart.toEpochSecond()))
+                .plus(dayNo.cast(BigDecimal.class).times(BigDecimal.valueOf(86_400)));
+        Field<BigDecimal> bookedEpoch = extract(LEDGER_TRANSACTION.BOOKED_AT, DatePart.EPOCH).cast(BigDecimal.class);
 
         Field<BigDecimal> dayEndBalance = coalesce(
                 select(sum(POSTING.AMOUNT))
                         .from(POSTING)
                         .join(LEDGER_TRANSACTION).on(LEDGER_TRANSACTION.ID.eq(POSTING.TRANSACTION_ID))
                         .where(POSTING.ACCOUNT_ID.eq(ACCOUNT.ID))
-                        .and(LEDGER_TRANSACTION.BOOKED_AT.lt(nextDayStart))
+                        .and(bookedEpoch.lt(nextDayStart))
                         .asField(),
                 BigDecimal.ZERO).as("balance");
 
