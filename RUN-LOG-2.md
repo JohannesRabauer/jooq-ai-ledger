@@ -14,4 +14,12 @@ Honest log of compile errors, test failures, approach changes and guesses.
 - Own mistake: edit tool refused edits for files I had only `cat`-ed through bash ("File has not been read yet"). Re-read with Read, then edited. Also ran a stray `python` command by mistake that hung on a REPL for 2 minutes; harmless.
 - `mvn -q -B verify`: green (IbanTest 4, ReportSearchImportTest 7, TransferTest 9, app 1).
 
+## Item 1: group roll-up and move (GroupService)
+- Design: one `WITH RECURSIVE` statement with three CTEs: `tree` (subtree of the root with depth and path), `closure` (ancestor/descendant pairs inside that subtree, recursive too) and `own` (per group and currency: sum of its own accounts' postings). Final select joins tree-closure-own and sums `own` per ancestor (own = `sum(case when descendant = tree.id ...)`, subtree = `sum(own.balance)`). Chose the closure CTE over a path/array column because it renders on every dialect (needed for item 6).
+- Guessed API without compiler help, all compiled on the first try: `DSL.withRecursive(cte1, cte2, cte3)`, `name("tree").fields("id","depth","path").as(select(...).unionAll(select(...)))`, self-reference through `table(name("tree"))` plus `field(name("tree","id"), Long.class)`, `DSL.when(cond, value).otherwise(value)`, `Field.concat(String)`, `dsl.fetchExists(Select)`, `Records.mapping(GroupBalance::new)` with 6 columns.
+- Decisions: path and depth are relative to the root passed in (the root is "Bank", depth 0). One row per (group, currency); a group with no account in its subtree gets one row with currency null and zeros (left join to `own`). Balances of different currencies are never summed.
+- Cycle safety: `moveGroup` first takes `pg_advisory_xact_lock(7002)` (plain SQL via `dsl.execute`, as in round 1; the function returns void so it must not be read as a field, which I remembered from round 1), then checks with a recursive CTE whether the new parent is the group itself or below it. A global lock is coarse but simple; the alternative would have been locking the ancestor rows. The concurrent test moves A under B and B under A 25 times in parallel and requires exactly one success per round.
+- Test failure 1: `rollupOverThree...` asserted paths starting with "Bank / Retail" for `rollup(retail)`. Test bug: paths are relative to the root passed in, so they are "Retail", "Retail / Zurich". Fixed the test.
+- `mvn verify` green after that (took over two minutes in total, the foreground tool call timed out and moved to the background; I now run maven in the background).
+
 (end of log)
