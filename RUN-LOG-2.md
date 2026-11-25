@@ -23,3 +23,13 @@ MCP calls (continued, numbering: I forgot to log one earlier):
 - moveGroup: `SELECT id FROM account_group ORDER BY id FOR UPDATE` (all group rows, id order) then re-check cycle with a recursive "ancestors of new parent" CTE in a new statement (READ COMMITTED sees the other commit). Trade-off: serializes all moves; fine for an org tree. Not sure Postgres locks in ORDER BY order, but I believe LockRows sits above Sort; the 25-round concurrency test passes with exactly one winner each round.
 - Compile error: `ResultQuery<Record>` return type vs `SelectSeekStep2<Record7..>` -> changed to `ResultQuery<? extends Record>`.
 - Test failure: concurrentOppositeMovesNeverCreateACycle NPE at test line 157: `List.of(null, ..)` in my test. Fixed test (Arrays.asList).
+
+## Item 2 (average daily balance)
+MCP calls:
+8. searchDocumentation "date time arithmetic add days interval to TIMESTAMP WITH TIME ZONE field" - pointed at TIMESTAMPADD, but only the name/Timestamp flavour; no OffsetDateTime. Partly helpful (found the name), did not solve it.
+9. getSqlExamples "GENERATE_SERIES" - only dialect emulations (Sybase/SQLServer/DB2); confirmed `generateSeries(0, n)` exists. Kept.
+10. searchDocumentation "dateAdd OffsetDateTime Field DatePart HOUR add to temporal field" - useless (OffsetDateTime == TIMESTAMP WITH TIME ZONE, hour() docs). No change.
+- Compile error: `timestampAdd(Param<OffsetDateTime>, Field<Integer>, DatePart)` - "not applicable", jOOQ only has timestampAdd for java.sql.Timestamp. Changed approach: `val(start).add(inline(new DayToSecond(0, 1)).mul(n.plus(1).times(24)))` (interval hours * n). GUESSED that Field.add/mul accept intervals on OffsetDateTime; it compiled and ran on Postgres. Reason for 24-hour steps instead of days: `timestamptz + 1 day` depends on session time zone (pgjdbc sets the JVM zone) and would break across DST; the test uses March 2026 (DST change on the 29th) to cover this.
+- Query: generate_series day axis cross join account, correlated scalar subquery sum(postings booked_at < day end) -> includes opening balance and a posting exactly at midnight lands on the new day; derived table + window avg/min per account. Day date is computed in Java from the index of the row (not a loop that builds days).
+- Rendering for Postgres shows `cast(interval '0 years 0 mons 0 days 1 hours ...' as interval day to second)` - ugly but works; not relevant for item 6 (only item 1 and 3 are rendered per dialect).
+- Tests passed first run (4 tests).
