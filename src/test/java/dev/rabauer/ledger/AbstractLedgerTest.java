@@ -1,6 +1,7 @@
 package dev.rabauer.ledger;
 
 import static dev.rabauer.ledger.jooq.Tables.ACCOUNT;
+import static dev.rabauer.ledger.jooq.Tables.ACCOUNT_GROUP;
 import static dev.rabauer.ledger.jooq.Tables.CUSTOMER;
 import static dev.rabauer.ledger.jooq.Tables.LEDGER_TRANSACTION;
 import static dev.rabauer.ledger.jooq.Tables.POSTING;
@@ -9,6 +10,7 @@ import static org.jooq.impl.DSL.coalesce;
 import static org.jooq.impl.DSL.sum;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jooq.DSLContext;
@@ -45,6 +47,29 @@ abstract class AbstractLedgerTest {
                 .set(ACCOUNT.CURRENCY, currency)
                 .set(ACCOUNT.ALLOW_OVERDRAFT, allowOverdraft)
                 .returningResult(ACCOUNT.ID).fetchSingle(ACCOUNT.ID);
+    }
+
+    protected long group(String name, Long parentId) {
+        return dsl.insertInto(ACCOUNT_GROUP).set(ACCOUNT_GROUP.NAME, name).set(ACCOUNT_GROUP.PARENT_ID, parentId)
+                .returningResult(ACCOUNT_GROUP.ID).fetchSingle(ACCOUNT_GROUP.ID);
+    }
+
+    protected long account(long customerId, String currency, long groupId) {
+        long id = account(customerId, currency, false);
+        dsl.update(ACCOUNT).set(ACCOUNT.GROUP_ID, groupId).where(ACCOUNT.ID.eq(id)).execute();
+        return id;
+    }
+
+    /** Books {@code amount} onto the account at {@code bookedAt}, counter-booked on a fresh overdraft account. */
+    protected void bookAt(TransferService transfers, long accountId, String currency, String amount,
+            OffsetDateTime bookedAt) {
+        long other = account(customer("counter"), currency, true);
+        BigDecimal value = new BigDecimal(amount);
+        if (value.signum() >= 0) {
+            transfers.transfer(other, accountId, value, "booking", bookedAt);
+        } else {
+            transfers.transfer(accountId, other, value.negate(), "booking", bookedAt);
+        }
     }
 
     /** Books a deposit from a fresh overdraft-enabled counter account. */
