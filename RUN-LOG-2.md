@@ -55,3 +55,8 @@ MCP calls:
 - What I did instead: tests render both queries for POSTGRES and assert for MYSQL, MARIADB, H2, HSQLDB, SQLITE, FIREBIRD that rendering works and no `::`, jsonb, ilike, returning, generate_series, on conflict, distinct on, `interval '` appears. A third test checks ORACLE and SQLSERVER via `assumeTrue(dialect exists)`, so it is reported as SKIPPED here (Oracle/SQL Server were never rendered). I did not weaken any assertion to get green; the skip is because the dialects do not exist in this build.
 - Runtime error: DERBY: "SQL transformation Settings.transformInlineCTE required. SQL transformations are a commercial only feature" when rendering the roll-up (Derby has no CTEs). Removed DERBY from the list with a comment.
 - Note: only the roll-up and valuation are checked for leaks; the daily-balance and reconciliation SQL contain Postgres-specific bits (interval arithmetic, AT TIME ZONE) and were not required to be portable.
+
+## Final
+- `mvn -q -B verify` green: 46 tests, 0 failures, 0 errors, 1 skipped (DialectRenderingTest.oracleAndSqlServerWhenTheBuildHasThem: ORACLE/SQLSERVER do not exist in the open-source jOOQ build).
+- MCP total: 14 calls. Confirmatory or unhelpful for most; useful: forcedType shape/includeExpression regex (#2, #5), UPDATE .. FROM exists (#12). Misleading: #7 (NOWAIT default), #13 (SQL Server dialect as available). No migration (V4) was needed.
+- Not done: Oracle and SQL Server rendering (impossible with this jOOQ edition); concurrent reconciliation runs are not serialized; existing databases holding non-IBAN values in account.iban would fail on read.
